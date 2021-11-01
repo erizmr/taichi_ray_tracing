@@ -194,6 +194,7 @@ def ray_color(ray):
                             hit_point_to_source.norm() * hit_point_normal.norm()),
                     0.0)
                 if material == 1:
+                    # shadow detection
                     default_color *= local_color
                     break
                 elif material == 2 or material == 3 or material == 4:

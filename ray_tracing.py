@@ -156,21 +156,60 @@ def render():
         color /= samples_per_pixel
         canvas[i, j] += color
 
+# @ti.func
+# def ray_color(ray):
+#     default_color = ti.Vector([1.0, 1.0, 1.0])
+#     scattered_origin = ray.origin
+#     scattered_direction = ray.direction
+#     for n in range(max_depth):
+#         is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
+#         if is_hit:
+#             if front_face:
+#                 target = hit_point + hit_point_normal + random_in_unit_sphere()
+#                 scattered_direction = target - hit_point
+#                 scattered_origin = hit_point
+#             # else:
+#             #     default_color = ti.Vector([0.5, 0.0, 0.0])
+#             default_color *= color
+#     return default_color
+
+@ti.func
+def to_light_source(hit_point, light_source):
+    return light_source - hit_point
+
+# Blinn–Phong reflection model
 @ti.func
 def ray_color(ray):
     default_color = ti.Vector([1.0, 1.0, 1.0])
     scattered_origin = ray.origin
     scattered_direction = ray.direction
-    for n in range(max_depth):
-        is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
-        if is_hit:
+    is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
+    if is_hit:
+        if material == 0:
+            default_color = color
+        else:
             if front_face:
                 target = hit_point + hit_point_normal + random_in_unit_sphere()
                 scattered_direction = target - hit_point
                 scattered_origin = hit_point
-            # else:
-            #     default_color = ti.Vector([0.5, 0.0, 0.0])
-            default_color *= color
+            hit_point_to_source = to_light_source(hit_point, ti.Vector([0, 5.4, -1]))
+
+            # Diffuse light
+            default_color = color * max(hit_point_to_source.dot(hit_point_normal) / (hit_point_to_source.norm() * hit_point_normal.norm()), 0.0)
+
+            intensity = 0.0
+            if material == 2 or material == 3 or material == 4:
+                # Specular light
+                H = (-(ray.direction.normalized()) + hit_point_to_source.normalized()).normalized()
+                N_dot_H = max(H.dot(hit_point_normal.normalized()), 0.0)
+                intensity = ti.pow(N_dot_H, 10)
+
+            if material == 4:
+                default_color *= 0.5
+                intensity *= 0.5
+
+            default_color += intensity * color
+
     return default_color
 
 if __name__ == "__main__":
@@ -183,7 +222,6 @@ if __name__ == "__main__":
 
     max_depth = args.max_depth
     samples_per_pixel = args.samples_per_pixel
-
     scene = Hittable_list()
 
     # Light source
@@ -206,7 +244,7 @@ if __name__ == "__main__":
     # Glass ball
     scene.add(Sphere(center=ti.Vector([0.7, 0, -0.5]), radius=0.5, material=3, color=ti.Vector([1.0, 1.0, 1.0])))
     # Metal ball-2
-    scene.add(Sphere(center=ti.Vector([0.6, -0.3, -2.0]), radius=0.2, material=2, color=ti.Vector([0.8, 0.6, 0.2])))
+    scene.add(Sphere(center=ti.Vector([0.6, -0.3, -2.0]), radius=0.2, material=4, color=ti.Vector([0.8, 0.6, 0.2])))
 
     camera = Camera()
     gui = ti.GUI("Ray Tracing", res=(image_width, image_height))

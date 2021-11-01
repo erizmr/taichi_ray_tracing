@@ -160,14 +160,13 @@ def ray_color(ray):
     default_color = ti.Vector([1.0, 1.0, 1.0])
     scattered_origin = ray.origin
     scattered_direction = ray.direction
-    for n in range(max_depth):
-        is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
-        if is_hit:
-            if front_face:
-                target = hit_point + hit_point_normal + random_in_unit_sphere()
-                scattered_direction = target - hit_point
-                scattered_origin = hit_point
-            default_color *= color
+    is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
+    if is_hit:
+        if front_face:
+            target = hit_point + hit_point_normal + random_in_unit_sphere()
+            scattered_direction = target - hit_point
+            scattered_origin = hit_point
+        default_color = color
     return default_color
 
 if __name__ == "__main__":
