@@ -172,10 +172,6 @@ def ray_color(ray):
         if material == 0:
             default_color = color
         else:
-            if front_face:
-                target = hit_point + hit_point_normal + random_in_unit_sphere()
-                scattered_direction = target - hit_point
-                scattered_origin = hit_point
             hit_point_to_source = to_light_source(hit_point, ti.Vector([0, 5.4, -1]))
             default_color = color * max(hit_point_to_source.dot(hit_point_normal) / (hit_point_to_source.norm() * hit_point_normal.norm()), 0.0)
     return default_color
