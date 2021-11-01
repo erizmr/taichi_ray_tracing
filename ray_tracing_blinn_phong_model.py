@@ -156,23 +156,6 @@ def render():
         color /= samples_per_pixel
         canvas[i, j] += color
 
-# @ti.func
-# def ray_color(ray):
-#     default_color = ti.Vector([1.0, 1.0, 1.0])
-#     scattered_origin = ray.origin
-#     scattered_direction = ray.direction
-#     for n in range(max_depth):
-#         is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
-#         if is_hit:
-#             if front_face:
-#                 target = hit_point + hit_point_normal + random_in_unit_sphere()
-#                 scattered_direction = target - hit_point
-#                 scattered_origin = hit_point
-#             # else:
-#             #     default_color = ti.Vector([0.5, 0.0, 0.0])
-#             default_color *= color
-#     return default_color
-
 @ti.func
 def to_light_source(hit_point, light_source):
     return light_source - hit_point
@@ -243,7 +226,7 @@ if __name__ == "__main__":
     scene.add(Sphere(center=ti.Vector([-0.8, 0.2, -1]), radius=0.7, material=2, color=ti.Vector([0.6, 0.8, 0.8])))
     # Glass ball
     scene.add(Sphere(center=ti.Vector([0.7, 0, -0.5]), radius=0.5, material=3, color=ti.Vector([1.0, 1.0, 1.0])))
-    # Metal ball-2
+    # Metal ball-2, here 4 indicates a fuzz metal ball
     scene.add(Sphere(center=ti.Vector([0.6, -0.3, -2.0]), radius=0.2, material=4, color=ti.Vector([0.8, 0.6, 0.2])))
 
     camera = Camera()
@@ -251,16 +234,6 @@ if __name__ == "__main__":
     canvas.fill(0)
     cnt = 0
     while gui.running:
-        # if gui.get_event(ti.GUI.PRESS):
-        #     if gui.event.key == ti.GUI.LMB:
-        #         x, y = gui.get_cursor_pos()
-        #         camera.lookfrom[None][0] = x * 4 - 2
-        #         camera.lookfrom[None][1] = y * 2 - 1
-        #         cnt = 0
-        #         canvas.fill(0)
-        #         camera.reset()
-        #     elif gui.event.key == ti.GUI.ESCAPE:
-        #         exit()
         render()
         cnt += 1
         gui.set_image(np.sqrt(canvas.to_numpy() / cnt))
