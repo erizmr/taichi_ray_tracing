@@ -1,8 +1,9 @@
 import taichi as ti
 import numpy as np
-import math
 import argparse
 ti.init(arch=ti.gpu)
+
+PI = 3.14159265
 
 # Canvas
 aspect_ratio = 1.0
@@ -25,9 +26,11 @@ class Ray:
 
 @ti.data_oriented
 class Sphere:
-    def __init__(self, center, radius):
+    def __init__(self, center, radius, material, color):
         self.center = center
         self.radius = radius
+        self.material = material
+        self.color = color
 
     @ti.func
     def hit(self, ray, t_min=0.001, t_max=10e8):
@@ -58,7 +61,7 @@ class Sphere:
                 front_face = True
             else:
                 hit_point_normal = -hit_point_normal
-        return is_hit, root, hit_point, hit_point_normal, front_face
+        return is_hit, root, hit_point, hit_point_normal, front_face, self.material, self.color
 
 @ti.data_oriented
 class Hittable_list:
@@ -68,12 +71,27 @@ class Hittable_list:
         self.objects.append(obj)
     def clear(self):
         self.objects = []
+
     @ti.func
     def hit(self, ray, t_min=0.001, t_max=10e8):
         closest_t = t_max
+        is_hit = False
+        front_face = False
+        hit_point = ti.Vector([0.0, 0.0, 0.0])
+        hit_point_normal = ti.Vector([0.0, 0.0, 0.0])
+        color = ti.Vector([0.0, 0.0, 0.0])
+        material = 1
         for index in ti.static(range(len(self.objects))):
-            is_hit, root, hit_point, hit_point_normal, front_face =  self.objects[index].hit(ray)
-            return is_hit, front_face
+            is_hit_tmp, root_tmp, hit_point_tmp, hit_point_normal_tmp, front_face_tmp, material_tmp, color_tmp =  self.objects[index].hit(ray, t_min, closest_t)
+            if is_hit_tmp:
+                closest_t = root_tmp
+                is_hit = is_hit_tmp
+                hit_point = hit_point_tmp
+                hit_point_normal = hit_point_normal_tmp
+                front_face = front_face_tmp
+                material = material_tmp
+                color = color_tmp
+        return is_hit, hit_point, hit_point_normal, front_face, material, color
 
 @ti.data_oriented
 class Camera:
@@ -96,7 +114,7 @@ class Camera:
         self.lookfrom[None] = [0.0, 1.0, -5.0]
         self.lookat[None] = [0.0, 1.0, -1.0]
         self.vup[None] = [0.0, 1.0, 0.0]
-        theta = self.fov * (math.pi / 180.0)
+        theta = self.fov * (PI / 180.0)
         half_height = ti.tan(theta / 2.0)
         half_width = self.aspect_ratio * half_height
         self.cam_origin[None] = self.lookfrom[None]
@@ -113,11 +131,18 @@ class Camera:
     def get_ray(self, u, v):
         return Ray(self.cam_origin[None], self.cam_lower_left_corner[None] + u * self.cam_horizontal[None] + v * self.cam_vertical[None] - self.cam_origin[None])
 
-# world
+@ti.func
+def rand3():
+    return ti.Vector([ti.random(), ti.random(), ti.random()])
 
-# ray
 
-# object
+@ti.func
+def random_in_unit_sphere():
+    p = 2.0 * rand3() - ti.Vector([1, 1, 1])
+    while (p.norm() >= 1.0):
+        p = 2.0 * rand3() - ti.Vector([1, 1, 1])
+    return p
+
 
 @ti.kernel
 def render():
@@ -134,12 +159,19 @@ def render():
 @ti.func
 def ray_color(ray):
     default_color = ti.Vector([1.0, 1.0, 1.0])
-    is_hit, front_face = scene.hit(ray)
-    if is_hit:
-        if front_face:
-            default_color = ti.Vector([0.5, 0.4, 0.3])
-        else:
-            default_color = ti.Vector([0.5, 0.0, 0.0])
+    scattered_origin = ray.origin
+    scattered_direction = ray.direction
+    for n in range(max_depth):
+        is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
+        if is_hit:
+            if front_face:
+                # default_color = ti.Vector([0.5, 0.4, 0.3])
+                target = hit_point + hit_point_normal + random_in_unit_sphere()
+                scattered_direction = target - hit_point
+                scattered_origin = hit_point
+            else:
+                default_color = ti.Vector([0.5, 0.0, 0.0])
+            default_color *= color
     return default_color
 
 if __name__ == "__main__":
@@ -154,8 +186,9 @@ if __name__ == "__main__":
     samples_per_pixel = args.samples_per_pixel
 
     scene = Hittable_list()
-    # scene.add(Sphere(center=ti.Vector([0.0, -100.5, 0.0]), radius=100.0))
-    scene.add(Sphere(center=ti.Vector([0.0, 102.5, -1.0]), radius=100.0,))
+    scene.add(Sphere(center=ti.Vector([0.0, -100.5, -1.0]), radius=100.0, material=1, color=ti.Vector([0.5, 0.4, 0.3])))
+    scene.add(Sphere(center=ti.Vector([-0.8, 1.0, -1.0]), radius=0.7, material=1, color=ti.Vector([0.8, 0.2, 0.2])))
+    # scene.add(Sphere(center=ti.Vector([0.0, 102.5, -1.0]), radius=100.0,))
 
     camera = Camera()
     gui = ti.GUI("Ray Tracing", res=(image_width, image_height))
