@@ -7,7 +7,7 @@ PI = 3.14159265
 
 # Canvas
 aspect_ratio = 1.0
-image_width = 600
+image_width = 800
 image_height = int(image_width / aspect_ratio)
 canvas = ti.Vector.field(3, dtype=ti.f32, shape=(image_width, image_height))
 
@@ -165,12 +165,11 @@ def ray_color(ray):
         is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
         if is_hit:
             if front_face:
-                # default_color = ti.Vector([0.5, 0.4, 0.3])
                 target = hit_point + hit_point_normal + random_in_unit_sphere()
                 scattered_direction = target - hit_point
                 scattered_origin = hit_point
-            else:
-                default_color = ti.Vector([0.5, 0.0, 0.0])
+            # else:
+            #     default_color = ti.Vector([0.5, 0.0, 0.0])
             default_color *= color
     return default_color
 
@@ -186,9 +185,28 @@ if __name__ == "__main__":
     samples_per_pixel = args.samples_per_pixel
 
     scene = Hittable_list()
-    scene.add(Sphere(center=ti.Vector([0.0, -100.5, -1.0]), radius=100.0, material=1, color=ti.Vector([0.5, 0.4, 0.3])))
-    scene.add(Sphere(center=ti.Vector([-0.8, 1.0, -1.0]), radius=0.7, material=1, color=ti.Vector([0.8, 0.2, 0.2])))
-    # scene.add(Sphere(center=ti.Vector([0.0, 102.5, -1.0]), radius=100.0,))
+
+    # Light source
+    scene.add(Sphere(center=ti.Vector([0, 5.4, -1]), radius=3.0, material=0, color=ti.Vector([10.0, 10.0, 10.0])))
+    # Ground
+    scene.add(Sphere(center=ti.Vector([0, -100.5, -1]), radius=100.0, material=1, color=ti.Vector([0.8, 0.8, 0.8])))
+    # ceiling
+    scene.add(Sphere(center=ti.Vector([0, 102.5, -1]), radius=100.0, material=1, color=ti.Vector([0.8, 0.8, 0.8])))
+    # back wall
+    scene.add(Sphere(center=ti.Vector([0, 1, 101]), radius=100.0, material=1, color=ti.Vector([0.8, 0.8, 0.8])))
+    # right wall
+    scene.add(Sphere(center=ti.Vector([-101.5, 0, -1]), radius=100.0, material=1, color=ti.Vector([0.6, 0.0, 0.0])))
+    # left wall
+    scene.add(Sphere(center=ti.Vector([101.5, 0, -1]), radius=100.0, material=1, color=ti.Vector([0.0, 0.6, 0.0])))
+
+    # Diffuse ball
+    scene.add(Sphere(center=ti.Vector([0, -0.2, -1.5]), radius=0.3, material=1, color=ti.Vector([0.8, 0.3, 0.3])))
+    # Metal ball
+    scene.add(Sphere(center=ti.Vector([-0.8, 0.2, -1]), radius=0.7, material=2, color=ti.Vector([0.6, 0.8, 0.8])))
+    # Glass ball
+    scene.add(Sphere(center=ti.Vector([0.7, 0, -0.5]), radius=0.5, material=3, color=ti.Vector([1.0, 1.0, 1.0])))
+    # Metal ball-2
+    scene.add(Sphere(center=ti.Vector([0.6, -0.3, -2.0]), radius=0.2, material=2, color=ti.Vector([0.8, 0.6, 0.2])))
 
     camera = Camera()
     gui = ti.GUI("Ray Tracing", res=(image_width, image_height))
