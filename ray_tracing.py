@@ -43,9 +43,9 @@ class Sphere:
         hit_point_normal = ti.Vector([0.0, 0.0, 0.0])
         if discriminant > 0:
             sqrtd = ti.sqrt(discriminant)
-            root = (-0.5 * b - sqrtd) / a
+            root = (-b - sqrtd) / (2 * a)
             if root < t_min or root > t_max:
-                root = (-0.5 * b + sqrtd) / a
+                root = (-b + sqrtd) / (2 * a)
                 if root >= t_min and root <= t_max:
                     is_hit = True
             else:
@@ -154,7 +154,8 @@ if __name__ == "__main__":
     samples_per_pixel = args.samples_per_pixel
 
     scene = Hittable_list()
-    scene.add(Sphere(center=ti.Vector([0.0, -100.5, 0.0]), radius=100.0))
+    # scene.add(Sphere(center=ti.Vector([0.0, -100.5, 0.0]), radius=100.0))
+    scene.add(Sphere(center=ti.Vector([0.0, 102.5, -1.0]), radius=100.0,))
 
     camera = Camera()
     gui = ti.GUI("Ray Tracing", res=(image_width, image_height))
