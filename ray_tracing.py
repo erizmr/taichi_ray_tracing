@@ -29,13 +29,36 @@ class Sphere:
         self.center = center
         self.radius = radius
 
-    def hit(self, ray):
+    @ti.func
+    def hit(self, ray, t_min=0.001, t_max=10e8):
         oc = ray.origin - self.center
         a = ray.direction.dot(ray.direction)
         b = 2.0 * oc.dot(ray.direction)
         c = oc.dot(oc) - self.radius * self.radius
         discriminant = b * b - 4 * a * c
-        return discriminant > 0
+        is_hit = False
+        front_face = False
+        root = 0.0
+        hit_point =  ti.Vector([0.0, 0.0, 0.0])
+        hit_point_normal = ti.Vector([0.0, 0.0, 0.0])
+        if discriminant > 0:
+            sqrtd = ti.sqrt(discriminant)
+            root = (-0.5 * b - sqrtd) / a
+            if root < t_min or root > t_max:
+                root = (-0.5 * b + sqrtd) / a
+                if root >= t_min and root <= t_max:
+                    is_hit = True
+            else:
+                is_hit = True
+        if is_hit:
+            hit_point = ray.at(root)
+            hit_point_normal = (hit_point - self.center) / self.radius
+            # Check which side does the ray hit, we set the hit point normals always point outward from the surface
+            if ray.direction.dot(hit_point_normal) < 0:
+                front_face = True
+            else:
+                hit_point_normal = -hit_point_normal
+        return is_hit, root, hit_point, hit_point_normal, front_face
 
 @ti.data_oriented
 class Hittable_list:
@@ -49,7 +72,8 @@ class Hittable_list:
     def hit(self, ray, t_min=0.001, t_max=10e8):
         closest_t = t_max
         for index in ti.static(range(len(self.objects))):
-            return self.objects[index].hit(ray)
+            is_hit, root, hit_point, hit_point_normal, front_face =  self.objects[index].hit(ray)
+            return is_hit, front_face
 
 @ti.data_oriented
 class Camera:
@@ -110,8 +134,12 @@ def render():
 @ti.func
 def ray_color(ray):
     default_color = ti.Vector([1.0, 1.0, 1.0])
-    if scene.hit(ray):
-        default_color = ti.Vector([0.5, 0.4, 0.3])
+    is_hit, front_face = scene.hit(ray)
+    if is_hit:
+        if front_face:
+            default_color = ti.Vector([0.5, 0.4, 0.3])
+        else:
+            default_color = ti.Vector([0.5, 0.0, 0.0])
     return default_color
 
 if __name__ == "__main__":
@@ -126,7 +154,7 @@ if __name__ == "__main__":
     samples_per_pixel = args.samples_per_pixel
 
     scene = Hittable_list()
-    scene.add(Sphere(center=ti.Vector([0.0, -100.5, -1.0]), radius=100.0))
+    scene.add(Sphere(center=ti.Vector([0.0, -100.5, 0.0]), radius=100.0))
 
     camera = Camera()
     gui = ti.GUI("Ray Tracing", res=(image_width, image_height))
