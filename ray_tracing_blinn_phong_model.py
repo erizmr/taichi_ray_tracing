@@ -139,7 +139,7 @@ def rand3():
 @ti.func
 def random_in_unit_sphere():
     p = 2.0 * rand3() - ti.Vector([1, 1, 1])
-    while (p.norm() >= 1.0):
+    while p.norm() >= 1.0:
         p = 2.0 * rand3() - ti.Vector([1, 1, 1])
     return p
 

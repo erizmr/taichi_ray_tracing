@@ -167,8 +167,9 @@ def reflect(v, normal):
 # Whitted-style ray tracing
 @ti.func
 def ray_color(ray):
-    default_color = ti.Vector([1.0, 1.0, 1.0])
-    color_buffer = ti.Vector([1.0, 1.0, 1.0])
+    default_color = ti.Vector([0.0, 0.0, 0.0])
+    specular_color_buffer = ti.Vector([0.0, 0.0, 0.0])
+    diffuse_color_buffer = ti.Vector([0.0, 0.0, 0.0])
     scattered_origin = ray.origin
     scattered_direction = ray.direction
     ray_traced_color = ti.Vector([0.0, 0.0 , 0.0])
@@ -194,8 +195,12 @@ def ray_color(ray):
                             hit_point_to_source.norm() * hit_point_normal.norm()),
                     0.0)
                 if material == 1:
-                    # shadow detection
-                    default_color *= local_color
+                    # shadow test
+                    a, b, c, d, material_test, e = scene.hit(Ray(hit_point, hit_point_to_source))
+                    if material_test == 0:
+                        diffuse_color_buffer = local_color
+                    else:
+                        diffuse_color_buffer *= 0
                     break
                 elif material == 2 or material == 3 or material == 4:
                     intensity = 0.0
@@ -204,15 +209,13 @@ def ray_color(ray):
                     N_dot_H = max(H.dot(hit_point_normal.normalized()), 0.0)
                     intensity = ti.pow(N_dot_H, 10)
                     specular_color = intensity * color
+                    specular_color_buffer += 0.1 * specular_color + 0.5 * color
 
-                    # default_color *= (specular_color + local_color)
-                    default_color *= local_color
-
-                    scattered_direction = reflect((scattered_direction).normalized(), hit_point_normal)
+                    scattered_direction = reflect(scattered_direction.normalized(), hit_point_normal)
                     scattered_origin = hit_point
                     if scattered_direction.dot(hit_point_normal) < 0:
                         break
-
+    default_color += specular_color_buffer + diffuse_color_buffer
     return default_color
 
 if __name__ == "__main__":
