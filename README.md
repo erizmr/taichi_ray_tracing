@@ -5,23 +5,11 @@
 
 
 ## 效果展示
-### Color only
-![Color only](./img/color_only.png)
-
-### Lambertian reflection 
-![Lambertian reflection](./img/lambertian.png)
-
-### Blinn-Phong model
-![Blinn-Phong model](./img/b_p.png)
-
-### Blinn-Phong model with shadow
-![Blinn-Phong model with shadow](./img/b_p_with_shadow.png)
-
-### Whitted style ray tracing
-![Whitted style ray tracing](./img/whitted.png)
-
-### Path tracing
-![Path tracing](./img/path_tracing.png)
+|Color only |Lambertian reflection | Blinn-Phong model |
+|:-------------------------:|:-------------------------:|:-------------------------:|
+|<img src="./img/color_only.png" width="200"> | <img src="./img/lambertian.png" width="200"> |<img src="./img/b_p.png" width="200"> |
+|Blinn-Phong model with shadow| Whitted style ray tracing|Path tracing|
+|<img src="./img/b_p_with_shadow.png" width="200">|<img src="./img/whitted.png" width="200">|<img src="./img/path_tracing.png" width="200">|
 
 
 ## 运行环境
