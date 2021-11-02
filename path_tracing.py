@@ -149,16 +149,6 @@ if __name__ == "__main__":
     canvas.fill(0)
     cnt = 0
     while gui.running:
-        # if gui.get_event(ti.GUI.PRESS):
-        #     if gui.event.key == ti.GUI.LMB:
-        #         x, y = gui.get_cursor_pos()
-        #         camera.lookfrom[None][0] = x * 4 - 2
-        #         camera.lookfrom[None][1] = y * 2 - 1
-        #         cnt = 0
-        #         canvas.fill(0)
-        #         camera.reset()
-        #     elif gui.event.key == ti.GUI.ESCAPE:
-        #         exit()
         render()
         cnt += 1
         gui.set_image(np.sqrt(canvas.to_numpy() / cnt))
