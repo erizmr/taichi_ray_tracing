@@ -9,7 +9,7 @@
 |:-------------------------:|:-------------------------:|:-------------------------:|
 |<img src="./img/color_only.png" width="200"> | <img src="./img/lambertian.png" width="200"> |<img src="./img/b_p.png" width="200"> |
 |Blinn-Phong model with shadow| Whitted style ray tracing|Path tracing|
-|<img src="./img/b_p_with_shadow.png" width="200">|<img src="./img/whitted.png" width="200">|<img src="./img/path_tracing_black_ground.png" width="200">|
+|<img src="./img/b_p_with_shadow.png" width="200">|<img src="./img/whitted.png" width="200">|<img src="./img/path_tracing_black_background.png" width="200">|
 
 
 ## 运行环境
