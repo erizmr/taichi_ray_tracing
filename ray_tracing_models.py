@@ -21,6 +21,12 @@ class Ray:
     def at(self, t):
         return self.origin + t * self.direction
 
+# @ti.data_oriented
+# class Material:
+#     def __init__(self, id, fuzz=0.0):
+#         self.material_id = id
+#         self.fuzz = fuzz
+
 @ti.data_oriented
 class Sphere:
     def __init__(self, center, radius, material, color):
