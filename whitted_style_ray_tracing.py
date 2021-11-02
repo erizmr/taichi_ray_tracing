@@ -11,6 +11,7 @@ image_width = 800
 image_height = int(image_width / aspect_ratio)
 canvas = ti.Vector.field(3, dtype=ti.f32, shape=(image_width, image_height))
 
+
 # Rendering parameters
 samples_per_pixel = 4
 max_depth = 10
@@ -156,31 +157,81 @@ def render():
         canvas[i, j] += color
 
 @ti.func
+def to_light_source(hit_point, light_source):
+    return light_source - hit_point
+
+@ti.func
+def reflect(v, normal):
+    return v - 2 * v.dot(normal) * normal
+
+# Whitted-style ray tracing
+@ti.func
 def ray_color(ray):
-    default_color = ti.Vector([1.0, 1.0, 1.0])
+    default_color = ti.Vector([0.0, 0.0, 0.0])
+    specular_color_buffer = ti.Vector([0.0, 0.0, 0.0])
+    diffuse_color_buffer = ti.Vector([0.0, 0.0, 0.0])
     scattered_origin = ray.origin
     scattered_direction = ray.direction
-    is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
-    if is_hit:
-        if front_face:
-            target = hit_point + hit_point_normal + random_in_unit_sphere()
-            scattered_direction = target - hit_point
-            scattered_origin = hit_point
-        default_color = color
+    ray_traced_color = ti.Vector([0.0, 0.0 , 0.0])
+
+    is_hit = False
+    front_face = False
+    material = 1
+    hit_point = ti.Vector([0.0, 0.0, 0.0])
+    hit_point_normal = ti.Vector([0.0, 0.0, 0.0])
+    color = ti.Vector([0.0, 0.0, 0.0])
+    for n in range(max_depth):
+        is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
+        if is_hit:
+            if material == 0:
+                default_color = color
+                break
+            else:
+                # Compute the local color use Blinn-Phong model
+                hit_point_to_source = to_light_source(hit_point, ti.Vector([0, 5.4, -1]))
+                # Diffuse light
+                local_color = color * max(
+                    hit_point_to_source.dot(hit_point_normal) / (
+                            hit_point_to_source.norm() * hit_point_normal.norm()),
+                    0.0)
+                if material == 1:
+                    diffuse_color_buffer = local_color
+                    # shadow test
+                    a, b, c, d, material_test, e = scene.hit(Ray(hit_point, hit_point_to_source))
+                    if material_test != 0:
+                        diffuse_color_buffer *= 0
+                    # break
+                elif material == 2 or material == 3 or material == 4:
+                    intensity = 0.0
+                    # Specular light
+                    H = (-(ray.direction.normalized()) + hit_point_to_source.normalized()).normalized()
+                    N_dot_H = max(H.dot(hit_point_normal.normalized()), 0.0)
+                    intensity = ti.pow(N_dot_H, 10)
+                    specular_color = intensity * color
+                    specular_color_buffer += 0.1 * specular_color + 0.1 * color
+
+                    # shadow test
+                    a, b, c, d, material_test, e = scene.hit(Ray(hit_point, hit_point_to_source))
+                    if material_test != 0:
+                        specular_color_buffer *= 0
+
+                    scattered_direction = reflect(scattered_direction.normalized(), hit_point_normal)
+                    scattered_origin = hit_point
+                    # if scattered_direction.dot(hit_point_normal) < 0:
+                    #     break
+    default_color += 0.5 * specular_color_buffer + diffuse_color_buffer
     return default_color
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Naive Ray Tracing')
     parser.add_argument(
-        '--max_depth', type=int, default=1, help='max depth (default: 10)')
+        '--max_depth', type=int, default=10, help='max depth (default: 10)')
     parser.add_argument(
         '--samples_per_pixel', type=int, default=4, help='samples_per_pixel  (default: 4)')
     args = parser.parse_args()
 
     max_depth = args.max_depth
-    assert max_depth == 1
     samples_per_pixel = args.samples_per_pixel
-
     scene = Hittable_list()
 
     # Light source
@@ -203,10 +254,10 @@ if __name__ == "__main__":
     # Glass ball
     scene.add(Sphere(center=ti.Vector([0.7, 0, -0.5]), radius=0.5, material=3, color=ti.Vector([1.0, 1.0, 1.0])))
     # Metal ball-2
-    scene.add(Sphere(center=ti.Vector([0.6, -0.3, -2.0]), radius=0.2, material=2, color=ti.Vector([0.8, 0.6, 0.2])))
+    scene.add(Sphere(center=ti.Vector([0.6, -0.3, -2.0]), radius=0.2, material=4, color=ti.Vector([0.8, 0.6, 0.2])))
 
     camera = Camera()
-    gui = ti.GUI("Ray Tracing - Color Only", res=(image_width, image_height))
+    gui = ti.GUI("Ray Tracing", res=(image_width, image_height))
     canvas.fill(0)
     cnt = 0
     while gui.running:
