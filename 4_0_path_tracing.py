@@ -1,7 +1,7 @@
 import taichi as ti
 import numpy as np
 import argparse
-from ray_tracing_models import Ray, Camera, Hittable_list, Sphere, PI, random_in_unit_sphere
+from ray_tracing_models import Ray, Camera, Hittable_list, Sphere, PI, random_in_unit_sphere, refract, reflect, reflectance, to_light_source
 ti.init(arch=ti.gpu)
 
 PI = 3.14159265
@@ -27,28 +27,6 @@ def render():
             color += ray_color(ray)
         color /= samples_per_pixel
         canvas[i, j] += color
-
-@ti.func
-def to_light_source(hit_point, light_source):
-    return light_source - hit_point
-
-@ti.func
-def reflect(v, normal):
-    return v - 2 * v.dot(normal) * normal
-
-@ti.func
-def refract(uv, n, etai_over_etat):
-    cos_theta = min(n.dot(-uv), 1.0)
-    r_out_perp = etai_over_etat * (uv + cos_theta * n)
-    r_out_parallel = -ti.sqrt(abs(1.0 - r_out_perp.dot(r_out_perp))) * n
-    return r_out_perp + r_out_parallel
-
-@ti.func
-def reflectance(cosine, ref_idx):
-    # Use Schlick's approximation for reflectance.
-    r0 = (1 - ref_idx) / (1 + ref_idx)
-    r0 = r0 * r0
-    return r0 + (1 - r0) * pow((1 - cosine), 5)
 
 # Path tracing
 @ti.func
