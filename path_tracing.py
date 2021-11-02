@@ -57,7 +57,10 @@ def ray_color(ray):
     attenuation = ti.Vector([1.0, 1.0, 1.0])
     scattered_origin = ray.origin
     scattered_direction = ray.direction
+    p_RR = 0.8
     for n in range(max_depth):
+        if ti.random() > p_RR:
+            break
         is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
         if is_hit:
             if material == 0:
@@ -103,6 +106,7 @@ def ray_color(ray):
                         break
                     else:
                         attenuation *= color
+                attenuation /= p_RR
     return default_color
 
 
