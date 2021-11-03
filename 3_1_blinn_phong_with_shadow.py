@@ -10,10 +10,10 @@ aspect_ratio = 1.0
 image_width = 800
 image_height = int(image_width / aspect_ratio)
 canvas = ti.Vector.field(3, dtype=ti.f32, shape=(image_width, image_height))
+light_source = ti.Vector([0, 5.4 - 3.0, -1])
 
 # Rendering parameters
 samples_per_pixel = 4
-max_depth = 10
 
 @ti.func
 def to_light_source(hit_point, light_source):
@@ -31,46 +31,57 @@ def render():
         color /= samples_per_pixel
         canvas[i, j] += color
 
+@ti.func
+def blinn_phong(ray_direction, hit_point, hit_point_normal, color, material):
+    # Compute the local color use Blinn-Phong model
+    hit_point_to_source = to_light_source(hit_point, light_source)
+    # Diffuse light
+    diffuse_color = color * max(
+        hit_point_to_source.dot(hit_point_normal) / (
+                hit_point_to_source.norm() * hit_point_normal.norm()),
+        0.0)
+    specular_color = ti.Vector([0.0, 0.0, 0.0])
+    diffuse_weight = 1.0
+    specular_weight = 1.0
+    if material != 1:
+        # Specular light
+        H = (-(ray_direction.normalized()) + hit_point_to_source.normalized()).normalized()
+        N_dot_H = max(H.dot(hit_point_normal.normalized()), 0.0)
+        intensity = ti.pow(N_dot_H, 10)
+        specular_color = intensity * color
+
+    # Fuzz metal ball
+    if material == 4:
+        diffuse_weight = 0.5
+        specular_weight = 0.5
+
+    # Add shadow
+    is_hit_source, hitted_dielectric_num, is_hitted_non_dielectric = scene.hit_shadow(
+        Ray(hit_point, hit_point_to_source))
+    shadow_weight = 1.0
+    if not is_hit_source:
+        if is_hitted_non_dielectric:
+            # Add hard shadow
+            shadow_weight = 0
+        elif hitted_dielectric_num > 0:
+            # Add soft shadow if the obstacles are dielectric
+            shadow_weight = ti.pow(0.5, hitted_dielectric_num)
+    return (diffuse_weight * diffuse_color + specular_weight * specular_color) * shadow_weight
+
+
 # Blinn–Phong reflection model with shadow
 @ti.func
 def ray_color(ray):
-    default_color = ti.Vector([1.0, 1.0, 1.0])
-    scattered_origin = ray.origin
-    scattered_direction = ray.direction
-    is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
+    color_buffer = ti.Vector([1.0, 1.0, 1.0])
+    curr_origin = ray.origin
+    curr_direction = ray.direction
+    is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(curr_origin, curr_direction))
     if is_hit:
         if material == 0:
-            default_color = color
+            color_buffer = color
         else:
-            hit_point_to_source = to_light_source(hit_point, ti.Vector([0, 5.4 - 3.0, -1]))
-
-            # Diffuse light
-            default_color = color * max(hit_point_to_source.dot(hit_point_normal) / (hit_point_to_source.norm() * hit_point_normal.norm()), 0.0)
-
-            intensity = 0.0
-            if material == 2 or material == 3 or material == 4:
-                # Specular light
-                H = (-(ray.direction.normalized()) + hit_point_to_source.normalized()).normalized()
-                N_dot_H = max(H.dot(hit_point_normal.normalized()), 0.0)
-                intensity = ti.pow(N_dot_H, 10)
-
-            if material == 4:
-                default_color *= 0.5
-                intensity *= 0.5
-
-            default_color += intensity * color
-
-            # Add shadow
-            is_hit_source, hitted_dielectric_num, is_hitted_non_dielectric = scene.hit_shadow(Ray(hit_point, hit_point_to_source))
-            if not is_hit_source:
-                if is_hitted_non_dielectric:
-                    # Add hard shadow
-                    default_color *= 0
-                elif hitted_dielectric_num > 0:
-                    # Add soft shadow if the obstacles are dielectric
-                    default_color *= ti.pow(0.5, hitted_dielectric_num)
-
-    return default_color
+            color_buffer = blinn_phong(curr_direction, hit_point, hit_point_normal, color, material)
+    return color_buffer
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Naive Ray Tracing')

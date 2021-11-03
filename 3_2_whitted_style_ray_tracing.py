@@ -7,15 +7,14 @@ ti.init(arch=ti.gpu)
 PI = 3.14159265
 # Canvas
 aspect_ratio = 1.0
-image_width = 500
+image_width = 800
 image_height = int(image_width / aspect_ratio)
 canvas = ti.Vector.field(3, dtype=ti.f32, shape=(image_width, image_height))
 light_source = ti.Vector([0, 5.4 - 3.0, -1])
 
 # Rendering parameters
 samples_per_pixel = 4
-max_depth = 10
-num_of_rays = 20
+stack_depth = 10
 
 @ti.kernel
 def render():
@@ -32,98 +31,6 @@ def render():
 @ti.func
 def to_light_source(hit_point, light_source):
     return light_source - hit_point
-
-# # Whitted-style ray tracing
-# @ti.func
-# def ray_color(ray, i, j):
-#     color_buffer = ti.Vector([0.0, 0.0, 0.0])
-#     attenuation = ti.Vector([1.0, 1.0, 1.0])
-#     scattered_origin = ray.origin
-#     scattered_direction = ray.direction
-#
-#     is_hit = False
-#     front_face = False
-#     material = 1
-#     hit_point = ti.Vector([0.0, 0.0, 0.0])
-#     hit_point_normal = ti.Vector([0.0, 0.0, 0.0])
-#     color = ti.Vector([0.0, 0.0, 0.0])
-#
-#     for n in range(max_depth):
-#         is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
-#         if is_hit:
-#             if material == 0:
-#                 color_buffer = color * attenuation
-#                 break
-#             else:
-#                 # Compute the local color use Blinn-Phong model
-#                 hit_point_to_source = to_light_source(hit_point, light_source)
-#                 # Diffuse light
-#                 local_color = color * max(
-#                     hit_point_to_source.dot(hit_point_normal) / (
-#                             hit_point_to_source.norm() * hit_point_normal.norm()),
-#                     0.0)
-#                 # Diffuse
-#                 if material == 1:
-#                     color_buffer += local_color * attenuation
-#                     # Add shadow
-#                     is_hit_source, hitted_dielectric_num, is_hitted_non_dielectric = scene.hit_shadow(
-#                         Ray(hit_point, hit_point_to_source))
-#                     if not is_hit_source:
-#                         if is_hitted_non_dielectric:
-#                             # Add hard shadow
-#                             color_buffer *= 0
-#                         elif hitted_dielectric_num > 0:
-#                             # Add soft shadow if the obstacles are dielectric
-#                             color_buffer *= ti.pow(0.5, hitted_dielectric_num)
-#                     break
-#                 else:
-#                     attenuation *= color
-#                     intensity = 0.0
-#                     # Specular light
-#                     H = (-(scattered_direction.normalized()) + hit_point_to_source.normalized()).normalized()
-#                     N_dot_H = max(H.dot(hit_point_normal.normalized()), 0.0)
-#                     intensity = ti.pow(N_dot_H, 10)
-#                     specular_color = intensity * color
-#                     color_buffer += (0.1 * specular_color + local_color) * attenuation
-#
-#                     # Add shadow
-#                     is_hit_source, hitted_dielectric_num, is_hitted_non_dielectric = scene.hit_shadow(
-#                         Ray(hit_point, hit_point_to_source))
-#                     if not is_hit_source:
-#                         if is_hitted_non_dielectric:
-#                             # Add hard shadow
-#                             color_buffer *= 0
-#                         elif hitted_dielectric_num > 0:
-#                             # Add soft shadow if the obstacles are dielectric
-#                             color_buffer *= ti.pow(0.5, hitted_dielectric_num)
-#                     # Metal
-#                     if material == 2:
-#                         scattered_direction = reflect(scattered_direction.normalized(), hit_point_normal)
-#                         scattered_origin = hit_point
-#                         if scattered_direction.dot(hit_point_normal) < 0:
-#                             break
-#                     # Fuzz metal
-#                     elif material == 4:
-#                         fuzz = 0.4
-#                         scattered_direction = reflect(scattered_direction.normalized(), hit_point_normal) + fuzz * random_in_unit_sphere()
-#                         scattered_origin = hit_point
-#                         if scattered_direction.dot(hit_point_normal) < 0:
-#                             break
-#                     # Dieletric
-#                     elif material == 3:
-#                         scattered_origin = hit_point
-#                         refraction_ratio = 1.5
-#                         if front_face:
-#                             refraction_ratio = 1 / refraction_ratio
-#                         cos_theta = min(-scattered_direction.normalized().dot(hit_point_normal), 1.0)
-#                         sin_theta = ti.sqrt(1 - cos_theta * cos_theta)
-#
-#                         # total internal reflection
-#                         if refraction_ratio * sin_theta > 1.0 or reflectance(cos_theta, refraction_ratio) > ti.random():
-#                             scattered_direction = reflect(scattered_direction.normalized(), hit_point_normal)
-#                         else:
-#                             scattered_direction = refract(scattered_direction.normalized(), hit_point_normal, refraction_ratio)
-#     return color_buffer
 
 
 @ti.func
@@ -147,7 +54,11 @@ def blinn_phong(ray_direction, hit_point, hit_point_normal, color, material):
 
     # Dieletric
     if material == 3:
-        diffuse_weight = 0.0
+        diffuse_weight = 0.1
+    # Fuzz metal ball
+    if material == 4:
+        diffuse_weight = 0.5
+        specular_weight = 0.5
 
     # Add shadow
     is_hit_source, hitted_dielectric_num, is_hitted_non_dielectric = scene.hit_shadow(
@@ -164,16 +75,16 @@ def blinn_phong(ray_direction, hit_point, hit_point_normal, color, material):
     return (diffuse_weight * diffuse_color + specular_weight * specular_color) * shadow_weight
 
 
-origin_stack = ti.Vector.field(3, dtype=float, shape=(image_width, image_height, num_of_rays))
+origin_stack = ti.Vector.field(3, dtype=float, shape=(image_width, image_height, stack_depth))
 origin_stack_pointer = ti.field(dtype=int, shape=(image_width, image_height))
 
-direction_stack = ti.Vector.field(3, dtype=float, shape=(image_width, image_height, num_of_rays))
+direction_stack = ti.Vector.field(3, dtype=float, shape=(image_width, image_height, stack_depth))
 direction_stack_pointer = ti.field(dtype=int, shape=(image_width, image_height))
 
-reflect_refract_stack = ti.Vector.field(2, dtype=int, shape=(image_width, image_height, num_of_rays))
+reflect_refract_stack = ti.Vector.field(2, dtype=int, shape=(image_width, image_height, stack_depth))
 reflect_refract_stack_pointer = ti.field(dtype=int, shape=(image_width, image_height))
 
-color_weight_stack = ti.field(dtype=float, shape=(image_width, image_height, num_of_rays))
+color_weight_stack = ti.field(dtype=float, shape=(image_width, image_height, stack_depth))
 color_weight_stack_pointer = ti.field(dtype=int, shape=(image_width, image_height))
 
 @ti.func
@@ -217,7 +128,7 @@ def ray_color(ray, i, j):
     color_buffer_temp = ti.Vector([0.0, 0.0, 0.0])
     stack_clear(i, j)
     stack_push(i, j, ray.origin, ray.direction, 1.0)
-    while origin_stack_pointer[i, j] >= 0 and origin_stack_pointer[i, j] < num_of_rays:
+    while origin_stack_pointer[i, j] >= 0 and origin_stack_pointer[i, j] < stack_depth:
         # Fetch a ray
         curr_origin, curr_direction, curr_relect_refract, color_weight = stack_top(i, j)
         is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(curr_origin, curr_direction))
