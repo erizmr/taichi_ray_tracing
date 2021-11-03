@@ -16,6 +16,7 @@ canvas = ti.Vector.field(3, dtype=ti.f32, shape=(image_width, image_height))
 samples_per_pixel = 4
 max_depth = 10
 
+
 @ti.kernel
 def render():
     for i, j in canvas:
@@ -31,7 +32,7 @@ def render():
 # Path tracing
 @ti.func
 def ray_color(ray):
-    default_color = ti.Vector([0.0, 0.0, 0.0])
+    color_buffer = ti.Vector([0.0, 0.0, 0.0])
     attenuation = ti.Vector([1.0, 1.0, 1.0])
     scattered_origin = ray.origin
     scattered_direction = ray.direction
@@ -42,7 +43,7 @@ def ray_color(ray):
         is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
         if is_hit:
             if material == 0:
-                default_color = color * attenuation
+                color_buffer = color * attenuation
                 break
             else:
                 # Diffuse
@@ -51,10 +52,13 @@ def ray_color(ray):
                     scattered_direction = target - hit_point
                     scattered_origin = hit_point
                     attenuation *= color
-                # Metal
-                elif material == 2:
+                # Metal and Fuzz Metal
+                elif material == 2 or material == 4:
+                    fuzz = 0.0
+                    if material == 4:
+                        fuzz = 0.4
                     scattered_direction = reflect(scattered_direction.normalized(),
-                                                  hit_point_normal)
+                                                  hit_point_normal) + fuzz * random_in_unit_sphere()
                     scattered_origin = hit_point
                     if scattered_direction.dot(hit_point_normal) < 0:
                         break
@@ -74,18 +78,8 @@ def ray_color(ray):
                         scattered_direction = refract(scattered_direction.normalized(), hit_point_normal, refraction_ratio)
                     scattered_origin = hit_point
                     attenuation *= color
-                # Fuzz metal
-                elif material == 4:
-                    fuzz = 0.4
-                    scattered_direction = reflect(scattered_direction.normalized(),
-                                                  hit_point_normal)  + fuzz * random_in_unit_sphere()
-                    scattered_origin = hit_point
-                    if scattered_direction.dot(hit_point_normal) < 0:
-                        break
-                    else:
-                        attenuation *= color
                 attenuation /= p_RR
-    return default_color
+    return color_buffer
 
 
 if __name__ == "__main__":
