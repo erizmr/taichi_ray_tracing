@@ -36,7 +36,7 @@ def blinn_phong(ray_direction, hit_point, hit_point_normal, color, material):
     # Compute the local color use Blinn-Phong model
     hit_point_to_source = to_light_source(hit_point, light_source)
     # Diffuse light
-    diffuse_color = color * max(
+    diffuse_color = color * ti.max(
         hit_point_to_source.dot(hit_point_normal) / (
                 hit_point_to_source.norm() * hit_point_normal.norm()),
         0.0)
@@ -46,7 +46,7 @@ def blinn_phong(ray_direction, hit_point, hit_point_normal, color, material):
     if material != 1:
         # Specular light
         H = (-(ray_direction.normalized()) + hit_point_to_source.normalized()).normalized()
-        N_dot_H = max(H.dot(hit_point_normal.normalized()), 0.0)
+        N_dot_H = ti.max(H.dot(hit_point_normal.normalized()), 0.0)
         intensity = ti.pow(N_dot_H, 10)
         specular_color = intensity * color
 
