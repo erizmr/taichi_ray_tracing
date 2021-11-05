@@ -33,7 +33,7 @@ def render():
 @ti.func
 def ray_color(ray):
     color_buffer = ti.Vector([0.0, 0.0, 0.0])
-    attenuation = ti.Vector([1.0, 1.0, 1.0])
+    brightness = ti.Vector([1.0, 1.0, 1.0])
     scattered_origin = ray.origin
     scattered_direction = ray.direction
     p_RR = 0.8
@@ -43,7 +43,7 @@ def ray_color(ray):
         is_hit, hit_point, hit_point_normal, front_face, material, color = scene.hit(Ray(scattered_origin, scattered_direction))
         if is_hit:
             if material == 0:
-                color_buffer = color * attenuation
+                color_buffer = color * brightness
                 break
             else:
                 # Diffuse
@@ -51,7 +51,7 @@ def ray_color(ray):
                     target = hit_point + hit_point_normal + random_in_unit_sphere()
                     scattered_direction = target - hit_point
                     scattered_origin = hit_point
-                    attenuation *= color
+                    brightness *= color
                 # Metal and Fuzz Metal
                 elif material == 2 or material == 4:
                     fuzz = 0.0
@@ -63,7 +63,7 @@ def ray_color(ray):
                     if scattered_direction.dot(hit_point_normal) < 0:
                         break
                     else:
-                        attenuation *= color
+                        brightness *= color
                 # Dielectric
                 elif material == 3:
                     refraction_ratio = 1.5
@@ -77,8 +77,8 @@ def ray_color(ray):
                     else:
                         scattered_direction = refract(scattered_direction.normalized(), hit_point_normal, refraction_ratio)
                     scattered_origin = hit_point
-                    attenuation *= color
-                attenuation /= p_RR
+                    brightness *= color
+                brightness /= p_RR
     return color_buffer
 
 
