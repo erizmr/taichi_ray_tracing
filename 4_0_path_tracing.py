@@ -1,10 +1,8 @@
 import taichi as ti
 import numpy as np
 import argparse
-from ray_tracing_models import Ray, Camera, Hittable_list, Sphere, PI, random_in_unit_sphere, refract, reflect, reflectance, to_light_source
+from ray_tracing_models import Ray, Camera, Hittable_list, Sphere, PI, random_in_unit_sphere, refract, reflect, reflectance, random_unit_vector
 ti.init(arch=ti.gpu)
-
-PI = 3.14159265
 
 # Canvas
 aspect_ratio = 1.0
@@ -15,6 +13,7 @@ canvas = ti.Vector.field(3, dtype=ti.f32, shape=(image_width, image_height))
 # Rendering parameters
 samples_per_pixel = 4
 max_depth = 10
+sample_on_unit_sphere_surface = True
 
 
 @ti.kernel
@@ -48,7 +47,11 @@ def ray_color(ray):
             else:
                 # Diffuse
                 if material == 1:
-                    target = hit_point + hit_point_normal + random_in_unit_sphere()
+                    target = hit_point + hit_point_normal
+                    if sample_on_unit_sphere_surface:
+                        target += random_unit_vector()
+                    else:
+                        target += random_in_unit_sphere()
                     scattered_direction = target - hit_point
                     scattered_origin = hit_point
                     brightness *= color
@@ -58,7 +61,11 @@ def ray_color(ray):
                     if material == 4:
                         fuzz = 0.4
                     scattered_direction = reflect(scattered_direction.normalized(),
-                                                  hit_point_normal) + fuzz * random_in_unit_sphere()
+                                                  hit_point_normal)
+                    if sample_on_unit_sphere_surface:
+                        scattered_direction += fuzz * random_unit_vector()
+                    else:
+                        scattered_direction += fuzz * random_in_unit_sphere()
                     scattered_origin = hit_point
                     if scattered_direction.dot(hit_point_normal) < 0:
                         break
@@ -88,10 +95,13 @@ if __name__ == "__main__":
         '--max_depth', type=int, default=10, help='max depth (default: 10)')
     parser.add_argument(
         '--samples_per_pixel', type=int, default=4, help='samples_per_pixel  (default: 4)')
+    parser.add_argument(
+        '--samples_in_unit_sphere', action='store_true', help='whether sample in a unit sphere')
     args = parser.parse_args()
 
     max_depth = args.max_depth
     samples_per_pixel = args.samples_per_pixel
+    sample_on_unit_sphere_surface = not args.samples_in_unit_sphere
     scene = Hittable_list()
 
     # Light source

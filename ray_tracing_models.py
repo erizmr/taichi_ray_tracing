@@ -14,6 +14,10 @@ def random_in_unit_sphere():
     return p
 
 @ti.func
+def random_unit_vector():
+    return random_in_unit_sphere().normalized()
+
+@ti.func
 def to_light_source(hit_point, light_source):
     return light_source - hit_point
 
