@@ -15,7 +15,7 @@
 ## 运行环境
 
 ```
-[Taichi] version 0.8.3, llvm 10.0.0, commit 2680dabd, linux, python 3.8.10
+[Taichi] version 1.4.0, llvm 10.0.0, commit 2680dabd, linux, python 3.8.10
 ```
 
 ## 运行方式
