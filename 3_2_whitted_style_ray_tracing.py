@@ -165,7 +165,7 @@ def ray_color(ray, i, j):
                 refraction_ratio = 1.5
                 if front_face:
                     refraction_ratio = 1 / refraction_ratio
-                cos_theta = min(-curr_direction.normalized().dot(hit_point_normal), 1.0)
+                cos_theta = ti.min(-curr_direction.normalized().dot(hit_point_normal), 1.0)
                 sin_theta = ti.sqrt(1 - cos_theta * cos_theta)
                 reflect_weight = reflectance(cos_theta, refraction_ratio)
                 refract_weight = 1- reflect_weight

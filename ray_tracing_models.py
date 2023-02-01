@@ -27,7 +27,7 @@ def reflect(v, normal):
 
 @ti.func
 def refract(uv, n, etai_over_etat):
-    cos_theta = min(n.dot(-uv), 1.0)
+    cos_theta = ti.min(n.dot(-uv), 1.0)
     r_out_perp = etai_over_etat * (uv + cos_theta * n)
     r_out_parallel = -ti.sqrt(abs(1.0 - r_out_perp.dot(r_out_perp))) * n
     return r_out_perp + r_out_parallel
@@ -39,11 +39,12 @@ def reflectance(cosine, ref_idx):
     r0 = r0 * r0
     return r0 + (1 - r0) * pow((1 - cosine), 5)
 
-@ti.data_oriented
+@ti.dataclass
 class Ray:
-    def __init__(self, origin, direction):
-        self.origin = origin
-        self.direction = direction
+    origin: ti.types.vector(3, ti.f32)
+    direction: ti.types.vector(3, ti.f32)
+    
+    @ti.func
     def at(self, t):
         return self.origin + t * self.direction
 

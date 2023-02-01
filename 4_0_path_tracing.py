@@ -76,7 +76,7 @@ def ray_color(ray):
                     refraction_ratio = 1.5
                     if front_face:
                         refraction_ratio = 1 / refraction_ratio
-                    cos_theta = min(-scattered_direction.normalized().dot(hit_point_normal), 1.0)
+                    cos_theta = ti.min(-scattered_direction.normalized().dot(hit_point_normal), 1.0)
                     sin_theta = ti.sqrt(1 - cos_theta * cos_theta)
                     # total internal reflection
                     if refraction_ratio * sin_theta > 1.0 or reflectance(cos_theta, refraction_ratio) > ti.random():
